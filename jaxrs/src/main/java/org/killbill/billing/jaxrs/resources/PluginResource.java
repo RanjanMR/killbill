@@ -224,8 +224,10 @@ public class PluginResource extends JaxRsResourceBase {
 
         final Response.ResponseBuilder builder  = Response.status(response.getStatus())
                 .entity(byteArrayOutputStream.toByteArray());
-        for (String name : response.getHeaderNames()) {
-            builder.header(name, response.getHeaders(name));
+        for (final String name : response.getHeaderNames()) {
+            for (final String value : response.getHeaders(name)) {
+                builder.header(name, value);
+            }
         }
         if (response.getCharacterEncoding() != null) {
             builder.encoding(response.getCharacterEncoding());
@@ -254,8 +256,8 @@ public class PluginResource extends JaxRsResourceBase {
             data.put(key, form.getFirst(key));
         }
         appendFormParametersToBody(out, data);
-
-        request.getInputStream().transferTo(out);
+        // changes related https://github.com/killbill/killbill/issues/1975
+        // request.getInputStream().transferTo(out);
         return new ByteArrayInputStream(out.toByteArray());
     }
 

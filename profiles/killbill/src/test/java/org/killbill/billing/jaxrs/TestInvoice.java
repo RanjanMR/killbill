@@ -19,6 +19,8 @@
 package org.killbill.billing.jaxrs;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -296,8 +298,8 @@ public class TestInvoice extends TestJaxrsBase {
 
         final LocalDate targetDt2 = effDt.plusDays(30);
         final Invoice dryRunInvoice2 = invoiceApi.generateDryRunInvoice(dryRunArg, accountJson.getAccountId(), targetDt2, NULL_PLUGIN_PROPERTIES, requestOptions);
-        // Two items for the FIXED & RECURRING price validating the future targetDate
-        assertEquals(dryRunInvoice2.getItems().size(), 2);
+        // One item for the RECURRING price validating the future targetDate
+        assertEquals(dryRunInvoice2.getItems().size(), 1);
     }
 
     @Test(groups = "slow", description = "Can retrieve invoice payments")
@@ -666,6 +668,9 @@ public class TestInvoice extends TestJaxrsBase {
             clock.addMonths(1);
             callbackServlet.assertListenerStatus();
         }
+
+        Assert.assertEquals(invoiceApi.searchInvoices(URLEncoder.encode("_q=1&balance[gte]=0", StandardCharsets.UTF_8), requestOptions).size(), 5);
+        Assert.assertEquals(invoiceApi.searchInvoices(URLEncoder.encode("_q=1&balance[neq]=0", StandardCharsets.UTF_8), requestOptions).size(), 0);
 
         final Invoices allInvoices = invoiceApi.getInvoices(requestOptions);
         Assert.assertEquals(allInvoices.size(), 5);

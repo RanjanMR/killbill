@@ -36,9 +36,12 @@ import org.killbill.billing.catalog.api.BillingPeriod;
 import org.killbill.billing.catalog.api.PlanPhaseSpecifier;
 import org.killbill.billing.catalog.api.PriceListSet;
 import org.killbill.billing.catalog.api.ProductCategory;
+import org.killbill.billing.entitlement.api.BlockingState;
+import org.killbill.billing.entitlement.api.BlockingStateType;
 import org.killbill.billing.entitlement.api.DefaultEntitlement;
 import org.killbill.billing.entitlement.api.DefaultEntitlementSpecifier;
 import org.killbill.billing.entitlement.api.Entitlement;
+import org.killbill.billing.entitlement.api.Subscription;
 import org.killbill.billing.entitlement.api.SubscriptionEventType;
 import org.killbill.billing.invoice.api.DryRunArguments;
 import org.killbill.billing.invoice.api.DryRunType;
@@ -47,6 +50,7 @@ import org.killbill.billing.invoice.api.InvoiceApiException;
 import org.killbill.billing.invoice.api.InvoiceItem;
 import org.killbill.billing.invoice.api.InvoiceItemType;
 import org.killbill.billing.invoice.api.InvoiceStatus;
+import org.killbill.billing.junction.DefaultBlockingState;
 import org.killbill.billing.subscription.api.user.DefaultSubscriptionBase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -173,9 +177,9 @@ public class TestIntegrationDryRunInvoice extends TestIntegrationBase {
         //
         final DefaultEntitlement baseEntitlement = createBaseEntitlementAndCheckForCompletion(account.getId(), "bundleKey", "Shotgun", ProductCategory.BASE, BillingPeriod.MONTHLY, NextEvent.CREATE, NextEvent.BLOCK, NextEvent.INVOICE);
         final DefaultSubscriptionBase subscription = subscriptionDataFromSubscription(baseEntitlement.getSubscriptionBase());
-        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(initialCreationDate.toLocalDate(), null, InvoiceItemType.FIXED, new BigDecimal("0")));
-        // No end date for the trial item (fixed price of zero), and CTD should be today (i.e. when the trial started)
-        invoiceChecker.checkChargedThroughDate(subscription.getId(), clock.getUTCToday(), callContext);
+        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(initialCreationDate.toLocalDate(), initialCreationDate.plusDays(30).toLocalDate(), InvoiceItemType.FIXED, new BigDecimal("0")));
+        // End date for the trial item (fixed price of zero), CTD set to end of TRIAL phase
+        invoiceChecker.checkChargedThroughDate(subscription.getId(), initialCreationDate.plusDays(30).toLocalDate(), callContext);
 
         final List<ExpectedInvoiceItemCheck> expectedInvoices = new ArrayList<ExpectedInvoiceItemCheck>();
         expectedInvoices.add(new ExpectedInvoiceItemCheck(new LocalDate(2015, 6, 14), new LocalDate(2015, 7, 14), InvoiceItemType.RECURRING, new BigDecimal("249.95")));
@@ -234,9 +238,9 @@ public class TestIntegrationDryRunInvoice extends TestIntegrationBase {
         // Create ANNUAL BP
         final DefaultEntitlement baseEntitlementAnnual = createBaseEntitlementAndCheckForCompletion(account.getId(), "bundleKeyAnnual", "Shotgun", ProductCategory.BASE, BillingPeriod.ANNUAL, NextEvent.CREATE, NextEvent.BLOCK, NextEvent.INVOICE);
         final DefaultSubscriptionBase subscriptionAnnual = subscriptionDataFromSubscription(baseEntitlementAnnual.getSubscriptionBase());
-        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(initialCreationDate.toLocalDate(), null, InvoiceItemType.FIXED, new BigDecimal("0")));
-        // No end date for the trial item (fixed price of zero), and CTD should be today (i.e. when the trial started)
-        invoiceChecker.checkChargedThroughDate(subscriptionAnnual.getId(), clock.getUTCToday(), callContext);
+        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(initialCreationDate.toLocalDate(), initialCreationDate.plusDays(30).toLocalDate(), InvoiceItemType.FIXED, new BigDecimal("0")));
+        // End date for the trial item (fixed price of zero), CTD set to end of TRIAL phase
+        invoiceChecker.checkChargedThroughDate(subscriptionAnnual.getId(), initialCreationDate.plusDays(30).toLocalDate(), callContext);
 
         // Verify next dryRun invoice and then move the clock to that date to also verify real invoice is the same
         final List<ExpectedInvoiceItemCheck> expectedInvoices = new ArrayList<ExpectedInvoiceItemCheck>();
@@ -265,16 +269,16 @@ public class TestIntegrationDryRunInvoice extends TestIntegrationBase {
         // Create the first monthly
         final DefaultEntitlement baseEntitlementMonthly1 = createBaseEntitlementAndCheckForCompletion(account.getId(), "bundleKey1", "Shotgun", ProductCategory.BASE, BillingPeriod.MONTHLY, NextEvent.CREATE, NextEvent.BLOCK, NextEvent.INVOICE);
         final DefaultSubscriptionBase subscriptionMonthly1 = subscriptionDataFromSubscription(baseEntitlementMonthly1.getSubscriptionBase());
-        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(secondSubscriptionCreationDate.toLocalDate(), null, InvoiceItemType.FIXED, new BigDecimal("0")));
-        // No end date for the trial item (fixed price of zero), and CTD should be today (i.e. when the trial started)
-        invoiceChecker.checkChargedThroughDate(subscriptionMonthly1.getId(), clock.getUTCToday(), callContext);
+        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(secondSubscriptionCreationDate.toLocalDate(), secondSubscriptionCreationDate.plusDays(30).toLocalDate(), InvoiceItemType.FIXED, new BigDecimal("0")));
+        // End date for the trial item (fixed price of zero), CTD set to end of TRIAL phase
+        invoiceChecker.checkChargedThroughDate(subscriptionMonthly1.getId(), secondSubscriptionCreationDate.plusDays(30).toLocalDate(), callContext);
 
         // Create the second monthly
         final DefaultEntitlement baseEntitlementMonthly2 = createBaseEntitlementAndCheckForCompletion(account.getId(), "bundleKey2", "Pistol", ProductCategory.BASE, BillingPeriod.MONTHLY, NextEvent.CREATE, NextEvent.BLOCK, NextEvent.INVOICE);
         final DefaultSubscriptionBase subscriptionMonthly2 = subscriptionDataFromSubscription(baseEntitlementMonthly2.getSubscriptionBase());
-        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(secondSubscriptionCreationDate.toLocalDate(), null, InvoiceItemType.FIXED, new BigDecimal("0")));
-        // No end date for the trial item (fixed price of zero), and CTD should be today (i.e. when the trial started)
-        invoiceChecker.checkChargedThroughDate(subscriptionMonthly2.getId(), clock.getUTCToday(), callContext);
+        invoiceChecker.checkInvoice(account.getId(), invoiceNumber++, callContext, new ExpectedInvoiceItemCheck(secondSubscriptionCreationDate.toLocalDate(), secondSubscriptionCreationDate.plusDays(30).toLocalDate(), InvoiceItemType.FIXED, new BigDecimal("0")));
+        // End date for the trial item (fixed price of zero), CTD set to end of TRIAL phase
+        invoiceChecker.checkChargedThroughDate(subscriptionMonthly2.getId(), secondSubscriptionCreationDate.plusDays(30).toLocalDate(), callContext);
 
         // Verify next dryRun invoice and then move the clock to that date to also verify real invoice is the same
         expectedInvoices.add(new ExpectedInvoiceItemCheck(new LocalDate(2015, 1, 14), new LocalDate(2015, 2, 14), InvoiceItemType.RECURRING, new BigDecimal("249.95")));
@@ -752,4 +756,76 @@ public class TestIntegrationDryRunInvoice extends TestIntegrationBase {
         assertEquals(dryRunInvoice.getId(), draftInvoiceAgain.getId());
 
     }
+
+    @Test(groups = "slow")
+    public void testDryRunWithBCDUpdateAccountBlockUnBlock() throws Exception {
+        final DateTime initialCreationDate = new DateTime(2023, 8, 1, 0, 0, 0, 0, testTimeZone);
+        clock.setTime(initialCreationDate);
+
+        final Account account = createAccountWithNonOsgiPaymentMethod(getAccountData(1));
+
+        // Create the subscription
+        busHandler.pushExpectedEvents(NextEvent.CREATE, NextEvent.BLOCK, NextEvent.INVOICE, NextEvent.PAYMENT, NextEvent.INVOICE_PAYMENT);
+        final PlanPhaseSpecifier spec = new PlanPhaseSpecifier("pistol-monthly-notrial", null);
+        final UUID subscriptionId = entitlementApi.createBaseEntitlement(account.getId(), new DefaultEntitlementSpecifier(spec, null, null, null, null), "bundleKey", null, null, false, true, Collections.emptyList(), callContext);
+        assertListenerStatus();
+
+        final List<ExpectedInvoiceItemCheck> expectedInvoices = new ArrayList<ExpectedInvoiceItemCheck>();
+        expectedInvoices.add(new ExpectedInvoiceItemCheck(new LocalDate(2023, 8, 1), new LocalDate(2023, 9, 1), InvoiceItemType.RECURRING, new BigDecimal("19.95")));
+        final Invoice invoice = invoiceChecker.checkInvoice(account.getId(), 1, callContext, expectedInvoices);
+
+        //Trigger dry run with date=2023-11-01 - 1 invoice item as expected
+        Invoice dryRunInvoice = invoiceUserApi.triggerDryRunInvoiceGeneration(account.getId(), new LocalDate(2023, 11, 1), DRY_RUN_TARGET_DATE_ARG, Collections.emptyList(), callContext);
+        List<ExpectedInvoiceItemCheck> dryRunExpectedInvoices = new ArrayList<>();
+        dryRunExpectedInvoices.add(new ExpectedInvoiceItemCheck(new LocalDate(2023, 11, 1), new LocalDate(2023, 12, 1), InvoiceItemType.RECURRING, new BigDecimal("19.95")));
+        assertEquals(dryRunInvoice.getInvoiceItems().size(), 1);
+        invoiceChecker.checkInvoiceNoAudits(dryRunInvoice, dryRunExpectedInvoices);
+
+        //Move clock to 2023-08-27
+        clock.setTime(new DateTime(2023, 8, 27, 0, 0, 0, 0, testTimeZone));
+
+        //Trigger dry run with date=2023-11-01 - 1 invoice item as expected
+        dryRunInvoice = invoiceUserApi.triggerDryRunInvoiceGeneration(account.getId(), new LocalDate(2023, 11, 1), DRY_RUN_TARGET_DATE_ARG, Collections.emptyList(), callContext);
+        dryRunExpectedInvoices = new ArrayList<>();
+        dryRunExpectedInvoices.add(new ExpectedInvoiceItemCheck(new LocalDate(2023, 11, 1), new LocalDate(2023, 12, 1), InvoiceItemType.RECURRING, new BigDecimal("19.95")));
+        assertEquals(dryRunInvoice.getInvoiceItems().size(), 1);
+        invoiceChecker.checkInvoiceNoAudits(dryRunInvoice, dryRunExpectedInvoices);
+
+        //update BCD
+        final Subscription subscription = subscriptionApi.getSubscriptionForEntitlementId(subscriptionId, false, callContext);
+        subscription.updateBCD(15, null, callContext);
+
+        //block with date=2023-09-01
+        final DateTime blockingDate = new DateTime(2023, 9, 1, 0, 0, 0, 0, testTimeZone);
+        final BlockingState block = new DefaultBlockingState(account.getId(), BlockingStateType.ACCOUNT, "subscriptionBlock", "svc2", false, false, true, blockingDate);
+        subscriptionApi.addBlockingState(block, blockingDate, Collections.emptyList(), callContext);
+
+        //unblock with date=2023-09-15
+        final DateTime unBlockingDate = new DateTime(2023, 9, 15, 0, 0, 0, 0, testTimeZone);
+        final BlockingState unBlock = new DefaultBlockingState(account.getId(), BlockingStateType.ACCOUNT, "subscriptionUnBlock", "svc2", false, false, false, unBlockingDate);
+        subscriptionApi.addBlockingState(unBlock, unBlockingDate, Collections.emptyList(), callContext);
+
+        //Dry Run with date =2023-09-01 - no invoice generated as expected
+        try {
+            dryRunInvoice = invoiceUserApi.triggerDryRunInvoiceGeneration(account.getId(), new LocalDate(2023, 9, 1), DRY_RUN_TARGET_DATE_ARG, Collections.emptyList(), callContext);
+        } catch (final InvoiceApiException e) {
+            assertEquals(e.getCode(), INVOICE_NOTHING_TO_DO.getCode());
+        }
+
+        //Dry Run with date =2023-09-15 - invoice with one invoice item as expected
+        dryRunInvoice = invoiceUserApi.triggerDryRunInvoiceGeneration(account.getId(), new LocalDate(2023, 9, 15), DRY_RUN_TARGET_DATE_ARG, Collections.emptyList(), callContext);
+        assertEquals(dryRunInvoice.getInvoiceItems().size(), 1);
+        dryRunExpectedInvoices = new ArrayList<>();
+        dryRunExpectedInvoices.add(new ExpectedInvoiceItemCheck(new LocalDate(2023, 9, 15), new LocalDate(2023, 10, 15), InvoiceItemType.RECURRING, new BigDecimal("19.95")));
+        invoiceChecker.checkInvoiceNoAudits(dryRunInvoice, dryRunExpectedInvoices);
+
+        //Dry Run with date =2023-10-15 - invoice with only the last invoice item as expected
+        dryRunInvoice = invoiceUserApi.triggerDryRunInvoiceGeneration(account.getId(), new LocalDate(2023, 10, 15), DRY_RUN_TARGET_DATE_ARG, Collections.emptyList(), callContext);
+        assertEquals(dryRunInvoice.getInvoiceItems().size(), 1);
+        dryRunExpectedInvoices = new ArrayList<>();
+        dryRunExpectedInvoices.add(new ExpectedInvoiceItemCheck(new LocalDate(2023, 10, 15), new LocalDate(2023, 11, 15), InvoiceItemType.RECURRING, new BigDecimal("19.95")));
+        invoiceChecker.checkInvoiceNoAudits(dryRunInvoice, dryRunExpectedInvoices);
+
+    }
+
 }
