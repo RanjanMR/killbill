@@ -228,3 +228,12 @@ tmtags
 logs/
 .logs
 util/sql
+
+#
+# Python
+#
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
